@@ -1,0 +1,330 @@
+# Statistics
+
+Statistics in REM.jl capture different mechanisms that may drive event occurrence. All statistics implement a common interface:
+
+```julia
+compute(stat, state, sender, receiver) -> Float64
+name(stat) -> String
+```
+
+## Statistic Types
+
+REM.jl organizes statistics into categories:
+
+| Type | Description |
+|------|-------------|
+| `DyadStatistic` | History between sender and receiver |
+| `DegreeStatistic` | Actor activity and popularity |
+| `TriangleStatistic` | Triadic closure effects |
+| `FourCycleStatistic` | Four-cycle clustering effects |
+| `NodeStatistic` | Node attribute effects |
+
+## Dyad Statistics
+
+These capture the history of events between the focal sender-receiver pair.
+
+### Repetition
+
+Tendency to repeat past interactions:
+
+```julia
+# Count of past s→r events
+Repetition()
+
+# Undirected: count of s↔r events
+Repetition(directed=false)
+```
+
+### Reciprocity
+
+Tendency to reciprocate interactions:
+
+```julia
+# Count of past r→s events
+Reciprocity()
+```
+
+### Inertia
+
+Combined repetition and reciprocity:
+
+```julia
+# Default: equal weights
+InertiaStatistic()
+
+# Custom weights
+InertiaStatistic(repetition_weight=2.0, reciprocity_weight=1.0)
+```
+
+### Recency
+
+How recently the last event occurred:
+
+```julia
+# Inverse of elapsed time
+RecencyStatistic()
+
+# With different transforms
+RecencyStatistic(transform=:inverse)    # 1/elapsed
+RecencyStatistic(transform=:log)        # 1/log(1+elapsed)
+RecencyStatistic(transform=:exp_decay, decay=0.1)  # exp(-0.1*elapsed)
+```
+
+### Dyad Covariate
+
+Pre-specified dyad-level covariate:
+
+```julia
+# Distance between actors
+distances = Dict((1,2) => 10.0, (1,3) => 20.0, (2,3) => 15.0)
+DyadCovariate(distances; default=100.0, name="distance")
+```
+
+## Degree Statistics
+
+These capture actor activity (out-degree) and popularity (in-degree).
+
+### Activity (Out-degree)
+
+```julia
+SenderActivity()     # Sender's past sending activity
+ReceiverActivity()   # Receiver's past sending activity
+```
+
+### Popularity (In-degree)
+
+```julia
+SenderPopularity()   # Sender's past receiving (popularity)
+ReceiverPopularity() # Receiver's past receiving (popularity)
+```
+
+### Total Degree
+
+```julia
+TotalDegree(role=:sender)    # Sender's in + out degree
+TotalDegree(role=:receiver)  # Receiver's in + out degree
+```
+
+### Degree Difference
+
+```julia
+DegreeDifference()                        # Sender out-degree - Receiver out-degree
+DegreeDifference(degree_type=:in)         # In-degree difference
+DegreeDifference(degree_type=:total)      # Total degree difference
+DegreeDifference(absolute=true)           # Absolute difference
+```
+
+### Log Degree
+
+```julia
+LogDegree(role=:sender, degree_type=:out)   # log(1 + sender out-degree)
+LogDegree(role=:receiver, degree_type=:in)  # log(1 + receiver in-degree)
+```
+
+## Triangle Statistics
+
+These capture triadic closure - the tendency for events to "close" triangles.
+
+### Transitive Closure
+
+Events that close a two-path s→k→r:
+
+```julia
+# Count of k where s→k and k→r
+TransitiveClosure()
+
+# Weighted by minimum edge weight
+TransitiveClosure(weighted=true)
+```
+
+Visual representation:
+```
+  k
+ ↗ ↘
+s → r  (the new event closes the triangle)
+```
+
+### Cyclic Closure
+
+Events that form a cycle r→k→s:
+
+```julia
+# Count of k where r→k and k→s
+CyclicClosure()
+```
+
+Visual representation:
+```
+  k
+ ↗ ↙
+r ← s  (the new s→r event closes the cycle)
+```
+
+### Shared Sender
+
+Common sender k who sent to both s and r:
+
+```julia
+# Count of k where k→s and k→r
+SharedSender()
+```
+
+### Shared Receiver
+
+Common receiver k who received from both s and r:
+
+```julia
+# Count of k where s→k and r→k
+SharedReceiver()
+```
+
+### Common Neighbors (Undirected)
+
+```julia
+# Any common neighbor (regardless of direction)
+CommonNeighbors()
+```
+
+### Geometrically Weighted Triads
+
+Down-weights additional shared partners:
+
+```julia
+GeometricWeightedTriads(closure_type=:transitive, alpha=0.5)
+GeometricWeightedTriads(closure_type=:cyclic, alpha=0.5)
+GeometricWeightedTriads(closure_type=:shared_sender, alpha=0.5)
+GeometricWeightedTriads(closure_type=:shared_receiver, alpha=0.5)
+```
+
+## Four-Cycle Statistics
+
+These capture clustering through pairs of intermediaries.
+
+### Four-Cycle
+
+Various four-cycle configurations:
+
+```julia
+# s→j←k→r (shared out-neighbor pattern)
+FourCycle(cycle_type=:out_out)
+
+# s←j→k←r (shared in-neighbor pattern)
+FourCycle(cycle_type=:in_in)
+
+# s→j→k→r (chain pattern)
+FourCycle(cycle_type=:out_in)
+
+# s←j←k←r (reverse chain)
+FourCycle(cycle_type=:in_out)
+
+# All patterns combined
+FourCycle(cycle_type=:mixed)
+```
+
+### Geometrically Weighted Four-Cycles
+
+```julia
+GeometricWeightedFourCycles(cycle_type=:out_out, alpha=0.5)
+```
+
+## Node Attribute Statistics
+
+These incorporate actor-level attributes.
+
+### Homophily (Node Match)
+
+Indicator for matching attributes:
+
+```julia
+gender = NodeAttribute(:gender, Dict(1=>"M", 2=>"F", 3=>"M"), "Unknown")
+
+# Returns 1.0 if sender and receiver have same gender
+NodeMatch(gender)
+```
+
+### Mixing Patterns (Node Mix)
+
+Indicator for specific sender-receiver combinations:
+
+```julia
+# Returns 1.0 if sender is "M" and receiver is "F"
+NodeMix(gender, "M", "F")
+```
+
+### Attribute Difference
+
+For numeric attributes:
+
+```julia
+age = NodeAttribute(:age, Dict(1=>25.0, 2=>30.0), 0.0)
+
+# sender_age - receiver_age
+NodeDifference(age)
+
+# |sender_age - receiver_age|
+NodeDifference(age; absolute=true)
+```
+
+### Attribute Sum and Product
+
+```julia
+NodeSum(age)      # sender_age + receiver_age
+NodeProduct(age)  # sender_age * receiver_age
+```
+
+### Main Effects
+
+Include attribute as a main effect:
+
+```julia
+# Numeric attributes
+SenderAttribute(age)    # Sender's age
+ReceiverAttribute(age)  # Receiver's age
+
+# Categorical attributes (indicator for specific value)
+SenderCategorical(gender, "M")    # 1.0 if sender is "M"
+ReceiverCategorical(gender, "F")  # 1.0 if receiver is "F"
+```
+
+## Using Statistics
+
+### Creating a Model
+
+```julia
+stats = [
+    Repetition(),
+    Reciprocity(),
+    SenderActivity(),
+    ReceiverPopularity(),
+    TransitiveClosure(),
+    NodeMatch(gender),
+]
+```
+
+### Computing Statistics Manually
+
+```julia
+# Create network state
+state = NetworkState(seq)
+
+# Process some events
+for i in 1:5
+    update!(state, seq[i])
+end
+
+# Compute a statistic for a potential event
+rep = Repetition()
+value = compute(rep, state, sender_id, receiver_id)
+
+# Compute all statistics
+values = compute_all(stats, state, sender_id, receiver_id)
+```
+
+### Custom Names
+
+All statistics accept a `name` parameter:
+
+```julia
+Repetition(name="past_interactions")
+TransitiveClosure(name="friends_of_friends")
+```

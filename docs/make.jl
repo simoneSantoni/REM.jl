@@ -1,0 +1,36 @@
+using Documenter
+using REM
+
+DocMeta.setdocmeta!(REM, :DocTestSetup, :(using REM); recursive=true)
+
+makedocs(
+    sitename = "REM.jl",
+    modules = [REM],
+    format = Documenter.HTML(
+        prettyurls = get(ENV, "CI", nothing) == "true",
+        canonical = "https://simoneSantoni.github.io/REM.jl",
+        assets = String[],
+    ),
+    pages = [
+        "Home" => "index.md",
+        "Getting Started" => "getting_started.md",
+        "User Guide" => [
+            "Events and Data" => "guide/events.md",
+            "Statistics" => "guide/statistics.md",
+            "Model Estimation" => "guide/estimation.md",
+            "Temporal Decay" => "guide/decay.md",
+        ],
+        "API Reference" => [
+            "Types" => "api/types.md",
+            "Statistics" => "api/statistics.md",
+            "Estimation" => "api/estimation.md",
+        ],
+    ],
+    warnonly = [:missing_docs],
+)
+
+deploydocs(
+    repo = "github.com/simoneSantoni/REM.jl.git",
+    devbranch = "main",
+    push_preview = true,
+)

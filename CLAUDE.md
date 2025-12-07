@@ -1,0 +1,75 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+REM.jl is a Julia implementation of Relational Event Models for statistical analysis of time-stamped relational events in networks. It is a port of [eventnet](https://github.com/juergenlerner/eventnet).
+
+## Development Commands
+
+```julia
+# Run tests
+using Pkg; Pkg.test("REM")
+
+# Run a specific test file
+include("test/runtests.jl")
+
+# Load the package in development
+using Pkg; Pkg.develop(path=".")
+using REM
+```
+
+## Architecture
+
+### Core Data Types (`src/types.jl`)
+- `Event{T}` - Single relational event with sender, receiver, timestamp, type, and weight
+- `EventSequence{T}` - Time-sorted collection of events with actor tracking
+- `ActorSet` - Set of actors with optional ID-to-name mapping
+- `NodeAttribute{T}` - Actor-level attribute storage with default values
+- `RiskSet` - Defines potential dyads for case-control sampling
+
+### Network State (`src/network.jl`)
+- `NetworkState{T}` - Tracks cumulative network state for efficient statistic computation
+- Maintains dyad counts, degrees, and event history with optional exponential decay
+
+### Statistics (`src/statistics/`)
+All statistics implement the `compute(stat, state, sender, receiver) -> Float64` interface:
+
+- **Dyad** (`dyad.jl`): `Repetition`, `Reciprocity`, `InertiaStatistic`, `RecencyStatistic`
+- **Degree** (`degree.jl`): `SenderActivity`, `ReceiverActivity`, `SenderPopularity`, `ReceiverPopularity`
+- **Triangle** (`triangle.jl`): `TransitiveClosure`, `CyclicClosure`, `SharedSender`, `SharedReceiver`
+- **FourCycle** (`fourcycle.jl`): `FourCycle` with various cycle type configurations
+- **Node** (`node.jl`): `NodeMatch`, `NodeMix`, `NodeDifference`, `SenderAttribute`, `ReceiverAttribute`
+
+### Estimation Pipeline (`src/observation.jl`, `src/estimation.jl`)
+1. `CaseControlSampler` - Generates case-control observations from event sequence
+2. `generate_observations()` - Computes statistics for cases and sampled controls
+3. `fit_rem()` - Fits stratified conditional logistic regression via Newton-Raphson
+
+## Key Design Patterns
+
+- Statistics are computed lazily using `NetworkState` which updates incrementally
+- Exponential decay of network effects via configurable halflife/decay parameters
+- Case-control sampling enables efficient estimation for large networks
+- All statistics return `Float64` for consistent matrix operations
+
+## Example Usage
+
+```julia
+using REM
+
+# Load events
+events = [
+    Event(1, 2, 1.0),
+    Event(2, 1, 2.0),
+    Event(1, 3, 3.0)
+]
+seq = EventSequence(events)
+
+# Define statistics
+stats = [Repetition(), Reciprocity(), SenderActivity()]
+
+# Fit model with case-control sampling
+result = fit_rem(seq, stats; n_controls=100, seed=42)
+```
