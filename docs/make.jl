@@ -32,5 +32,9 @@ makedocs(
 deploydocs(
     repo = "github.com/simoneSantoni/REM.jl.git",
     devbranch = "main",
+    versions = [
+        "stable" => "dev", # serve dev docs at /stable until a release is tagged
+        "dev" => "dev",
+    ],
     push_preview = true,
 )

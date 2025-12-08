@@ -8,16 +8,21 @@ REM.jl is a Julia implementation of Relational Event Models for statistical anal
 
 ## Development Commands
 
-```julia
-# Run tests
-using Pkg; Pkg.test("REM")
+```bash
+# Run tests from shell
+julia --project -e 'using Pkg; Pkg.test()'
+```
 
-# Run a specific test file
-include("test/runtests.jl")
+```julia
+# Run tests from Julia REPL
+using Pkg; Pkg.test("REM")
 
 # Load the package in development
 using Pkg; Pkg.develop(path=".")
 using REM
+
+# Run specific test file directly
+include("test/runtests.jl")
 ```
 
 ## Architecture
