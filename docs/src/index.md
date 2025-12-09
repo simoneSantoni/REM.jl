@@ -1,6 +1,6 @@
 # REM.jl
 
-![REM.jl icon](assets/rem-icon.svg)
+![REM.jl icon](assets/logo.svg)
 
 *Relational Event Models for Julia*
 

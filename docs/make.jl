@@ -10,7 +10,6 @@ makedocs(
     format = Documenter.HTML(
         prettyurls = get(ENV, "CI", nothing) == "true",
         canonical = "https://simoneSantoni.github.io/REM.jl",
-        assets = ["assets/rem-icon.svg"],
         edit_link = "main",
     ),
     repo = "https://github.com/simoneSantoni/REM.jl/blob/{commit}{path}#{line}",

@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 <p align="center">
-  <img src="docs/src/assets/rem-icon.svg" alt="REM.jl icon" width="160">
+  <img src="docs/src/assets/logo.svg" alt="REM.jl icon" width="160">
 </p>
 
 A Julia implementation of **Relational Event Models** for statistical analysis of time-stamped relational events in networks.
