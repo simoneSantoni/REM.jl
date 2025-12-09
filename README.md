@@ -7,6 +7,10 @@
 [![Julia](https://img.shields.io/badge/Julia-1.9+-purple.svg)](https://julialang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+<p align="center">
+  <img src="docs/src/assets/rem-icon.svg" alt="REM.jl icon" width="160">
+</p>
+
 A Julia implementation of **Relational Event Models** for statistical analysis of time-stamped relational events in networks.
 
 ## Overview
