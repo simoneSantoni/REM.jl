@@ -1,36 +1,88 @@
 # Types API Reference
 
+This page documents the core data types in REM.jl.
+
 ## Events
+
+### Event
 
 ```@docs
 Event
+```
+
+### EventSequence
+
+```@docs
 EventSequence
 ```
 
 ## Actor Data
 
+### ActorSet
+
 ```@docs
 ActorSet
+```
+
+### NodeAttribute
+
+```@docs
 NodeAttribute
+```
+
+### RiskSet
+
+```@docs
 RiskSet
 ```
 
 ## Network State
 
+The `NetworkState` type maintains the cumulative state of the network as events are processed. It tracks dyad counts, degrees, and neighbor sets, optionally with exponential decay.
+
+### NetworkState
+
 ```@docs
 NetworkState
+```
+
+### State Updates
+
+```@docs
 update!
 reset!
 ```
 
 ## State Query Functions
 
+These functions query the current network state for various quantities.
+
+### Dyad Queries
+
 ```@docs
 get_dyad_count
 get_undirected_count
+has_edge
+```
+
+### Degree Queries
+
+```@docs
 get_out_degree
 get_in_degree
+```
+
+### Neighbor Queries
+
+```@docs
 get_out_neighbors
 get_in_neighbors
-has_edge
+```
+
+## Time Utilities
+
+```@docs
+halflife_to_decay
+decay_to_halflife
+compute_decay_weight
 ```

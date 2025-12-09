@@ -6,11 +6,14 @@ DocMeta.setdocmeta!(REM, :DocTestSetup, :(using REM); recursive=true)
 makedocs(
     sitename = "REM.jl",
     modules = [REM],
+    authors = "Simone Santoni",
     format = Documenter.HTML(
         prettyurls = get(ENV, "CI", nothing) == "true",
         canonical = "https://simoneSantoni.github.io/REM.jl",
         assets = String[],
+        edit_link = "main",
     ),
+    repo = "https://github.com/simoneSantoni/REM.jl/blob/{commit}{path}#{line}",
     pages = [
         "Home" => "index.md",
         "Getting Started" => "getting_started.md",

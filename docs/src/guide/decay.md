@@ -1,6 +1,6 @@
 # Temporal Decay
 
-REM.jl supports exponential decay of network effects, allowing past events to have diminishing influence over time.
+REM.jl supports exponential decay of network effects, allowing past events to have diminishing influence over time. This captures the intuition that recent interactions are more relevant than older ones.
 
 ## Why Use Decay?
 
@@ -9,27 +9,28 @@ In many applications, recent events are more relevant than older ones:
 - A communication last week matters more than one from a year ago
 - Relationships may weaken without recent interaction
 - Network effects fade over time
+- Memory and attention are finite
 
-Temporal decay captures this by down-weighting older events.
+Temporal decay captures this by down-weighting older events when computing statistics.
 
-## Exponential Decay Model
+## The Exponential Decay Model
 
-The weight of an event decays exponentially:
+The weight of an event decays exponentially with elapsed time:
 
-```
-weight(t) = exp(-λ × elapsed_time)
-```
+$$w(t) = \exp(-\lambda \cdot \Delta t)$$
 
 Where:
-- λ is the decay rate
-- At t=0, weight = 1.0
-- At halflife, weight = 0.5
 
-## Setting Decay Rate
+- $\lambda$ is the decay rate (larger = faster decay)
+- $\Delta t$ is the elapsed time since the event
+- At $\Delta t = 0$: weight = 1.0 (full weight)
+- At $\Delta t = $ halflife: weight = 0.5
 
-### Using Halflife
+## Setting the Decay Rate
 
-The most intuitive way is to specify a halflife:
+### Using Halflife (Recommended)
+
+The most intuitive approach is to specify a halflife - the time after which an event has half its original weight:
 
 ```julia
 # Events lose half their weight after 10 time units
@@ -37,6 +38,8 @@ decay = halflife_to_decay(10.0)
 ```
 
 ### Direct Decay Rate
+
+Alternatively, specify the decay rate directly:
 
 ```julia
 # Decay rate of 0.1 per time unit
@@ -46,8 +49,13 @@ decay = 0.1
 ### Converting Between Forms
 
 ```julia
+# Halflife to decay rate
 decay = halflife_to_decay(halflife)
+
+# Decay rate to halflife
 halflife = decay_to_halflife(decay)
+
+# Relationship: decay = log(2) / halflife
 ```
 
 ## Using Decay in Models
@@ -68,7 +76,7 @@ result = fit_rem(seq, stats;
 # Create state with decay
 state = NetworkState(seq; decay=halflife_to_decay(10.0))
 
-# Process events - decay is applied automatically
+# Process events - decay is applied automatically as time advances
 for event in seq
     update!(state, event)
 end
@@ -87,23 +95,31 @@ obs = generate_observations(seq, stats, sampler;
 
 ### Numeric Timestamps
 
-For numeric timestamps, decay is applied directly:
+For numeric timestamps, decay is applied directly in the same units:
 
 ```julia
-# If time is in hours, halflife of 24 = one day decay
+# If time is in hours
+events = [
+    Event(1, 2, 0.0),   # Hour 0
+    Event(2, 1, 24.0),  # Hour 24 (1 day later)
+]
+seq = EventSequence(events)
+
+# Halflife of 24 hours = one day decay
 decay = halflife_to_decay(24.0)
+state = NetworkState(seq; decay=decay)
 ```
 
 ### DateTime Timestamps
 
-For DateTime, time differences are converted to seconds:
+For DateTime, time differences are converted to **seconds** internally:
 
 ```julia
 using Dates
 
 events = [
-    Event(1, 2, DateTime(2024, 1, 1, 10, 0)),
-    Event(2, 1, DateTime(2024, 1, 1, 11, 0)),
+    Event(1, 2, DateTime(2024, 1, 1, 10, 0)),  # 10:00 AM
+    Event(2, 1, DateTime(2024, 1, 1, 11, 0)),  # 11:00 AM (1 hour later)
 ]
 seq = EventSequence(events)
 
@@ -114,17 +130,20 @@ state = NetworkState(seq; decay=decay)
 
 ### Date Timestamps
 
-For Date, differences are in days (converted to seconds):
+For Date, differences are converted to days, then to **seconds**:
 
 ```julia
+using Dates
+
 events = [
-    Event(1, 2, Date(2024, 1, 1)),
-    Event(2, 1, Date(2024, 1, 15)),
+    Event(1, 2, Date(2024, 1, 1)),   # Day 1
+    Event(2, 1, Date(2024, 1, 8)),   # Day 8 (one week later)
 ]
 seq = EventSequence(events)
 
 # Halflife of 7 days = 7 * 86400 seconds
 decay = halflife_to_decay(7.0 * 86400)
+state = NetworkState(seq; decay=decay)
 ```
 
 ## How Decay Affects Statistics
@@ -132,20 +151,15 @@ decay = halflife_to_decay(7.0 * 86400)
 ### Dyad Counts
 
 Without decay:
-```
-get_dyad_count(state, s, r) = total number of s→r events
+
+```julia
+get_dyad_count(state, s, r)  # = total number of s→r events
 ```
 
 With decay:
-```
-get_dyad_count(state, s, r) = Σ exp(-λ × (current_time - event_time))
-```
 
-### Degrees
-
-Out-degree and in-degree are similarly weighted:
-```
-out_degree(actor) = Σ decay_weight × event_weight
+```julia
+get_dyad_count(state, s, r)  # = Σ exp(-λ × elapsed_time_i)
 ```
 
 ### Example
@@ -154,12 +168,12 @@ out_degree(actor) = Σ decay_weight × event_weight
 using REM
 
 events = [
-    Event(1, 2, 0.0),
-    Event(1, 2, 10.0),  # 10 time units later
+    Event(1, 2, 0.0),   # First event at t=0
+    Event(1, 2, 10.0),  # Second event at t=10
 ]
 seq = EventSequence(events)
 
-# Halflife of 10
+# Halflife of 10 time units
 decay = halflife_to_decay(10.0)
 state = NetworkState(seq; decay=decay)
 
@@ -167,56 +181,115 @@ state = NetworkState(seq; decay=decay)
 update!(state, seq[1])
 println(get_dyad_count(state, 1, 2))  # 1.0
 
-# After second event (first event decayed to 0.5)
+# After second event
+# First event has decayed: 10 time units = 1 halflife → weight = 0.5
+# Second event is fresh: weight = 1.0
 update!(state, seq[2])
 println(get_dyad_count(state, 1, 2))  # 1.5 (0.5 + 1.0)
 ```
 
-## Choosing Halflife
+### Degrees
+
+Out-degree and in-degree are similarly weighted:
+
+```julia
+# Without decay: count of events sent
+# With decay: Σ exp(-λ × elapsed) × event_weight
+get_out_degree(state, actor)
+get_in_degree(state, actor)
+```
+
+### All Statistics
+
+Decay affects **all** statistics that depend on counts:
+
+| Statistic | Effect of Decay |
+|-----------|-----------------|
+| Repetition | Weighted count of past s→r events |
+| Reciprocity | Weighted count of past r→s events |
+| SenderActivity | Weighted out-degree |
+| ReceiverPopularity | Weighted in-degree |
+| TransitiveClosure | Weighted count of two-paths |
+| etc. | All use weighted counts |
+
+## Choosing the Right Halflife
+
+### Domain Guidelines
 
 The appropriate halflife depends on your domain:
 
 | Domain | Typical Halflife |
 |--------|------------------|
-| Email/messaging | Hours to days |
-| Social interactions | Days to weeks |
+| Real-time chat | Minutes to hours |
+| Email communication | Hours to days |
+| Social media | Days to weeks |
 | Business relationships | Weeks to months |
 | Organizational ties | Months to years |
+| Stable institutions | Years |
 
-### Guidelines
+### Practical Guidelines
 
 1. **Domain knowledge**: What timeframe makes interactions "stale"?
 2. **Event frequency**: Halflife should be comparable to typical inter-event times
-3. **Sensitivity analysis**: Try different values and compare results
+3. **Observation period**: Halflife should be much smaller than total observation time
+4. **Sensitivity analysis**: Try different values and compare results
 
-## Recency Statistic
-
-For dyad-specific recency effects, use `RecencyStatistic`:
+### Sensitivity Analysis
 
 ```julia
-# Inverse of time since last event
-RecencyStatistic(transform=:inverse)
+halflifes = [1.0, 5.0, 10.0, 50.0, 100.0]
+results = Dict()
 
-# With exponential decay
-RecencyStatistic(transform=:exp_decay, decay=0.1)
-
-# Log transform
-RecencyStatistic(transform=:log)
+for hl in halflifes
+    decay = halflife_to_decay(hl)
+    result = fit_rem(seq, stats; n_controls=100, decay=decay, seed=42)
+    results[hl] = coef(result)
+    println("Halflife $hl: ", round.(coef(result), digits=3))
+end
 ```
 
-This is different from global decay:
-- **Global decay**: Affects all statistics through NetworkState
-- **RecencyStatistic**: A specific statistic measuring time since last dyad event
+## Recency Statistic vs Global Decay
 
-## Combining Approaches
+There are two ways to model time effects:
 
-You can use both:
+### Global Decay
+
+Affects **all** statistics through NetworkState:
+
+```julia
+# All statistics use decayed counts
+result = fit_rem(seq, stats; decay=halflife_to_decay(10.0))
+```
+
+### RecencyStatistic
+
+A **specific** statistic measuring time since last dyad event:
+
+```julia
+RecencyStatistic(transform=:inverse)     # 1/elapsed
+RecencyStatistic(transform=:log)         # 1/log(1+elapsed)
+RecencyStatistic(transform=:exp_decay, decay=0.1)  # exp(-0.1*elapsed)
+```
+
+### Key Differences
+
+| Aspect | Global Decay | RecencyStatistic |
+|--------|--------------|------------------|
+| Affects | All statistics | Only recency |
+| Measures | Weighted history | Time to last event |
+| Parameters | Decay rate | Transform type |
+| Use case | General fading | Dyad-specific timing |
+
+### Combining Both
+
+You can use both simultaneously:
 
 ```julia
 stats = [
     Repetition(),           # Affected by global decay
     Reciprocity(),          # Affected by global decay
-    RecencyStatistic(),     # Additional dyad-specific recency effect
+    RecencyStatistic(),     # Additional dyad-specific recency
+    SenderActivity(),       # Affected by global decay
 ]
 
 result = fit_rem(seq, stats;
@@ -226,6 +299,67 @@ result = fit_rem(seq, stats;
 )
 ```
 
-This allows modeling both:
-- General decay of all network effects
-- Specific recency effects for focal dyads
+This allows modeling:
+
+- General decay of all network effects (via global decay)
+- Specific recency effects for focal dyads (via RecencyStatistic)
+
+## No Decay (Default)
+
+When decay = 0.0 (the default), all past events have equal weight:
+
+```julia
+# These are equivalent
+result = fit_rem(seq, stats; n_controls=100)
+result = fit_rem(seq, stats; n_controls=100, decay=0.0)
+```
+
+This is appropriate when:
+
+- All historical interactions are equally relevant
+- The observation period is short
+- You want to maximize statistical power
+
+## Example: Email Network
+
+```julia
+using REM
+using Dates
+
+# Load email data with DateTime timestamps
+events = [
+    Event(1, 2, DateTime(2024, 1, 1, 9, 0)),
+    Event(2, 1, DateTime(2024, 1, 1, 9, 30)),
+    Event(1, 3, DateTime(2024, 1, 1, 14, 0)),
+    # ... more events
+]
+seq = EventSequence(events)
+
+# Define statistics
+stats = [
+    Repetition(),
+    Reciprocity(),
+    SenderActivity(),
+    ReceiverPopularity(),
+    TransitiveClosure(),
+]
+
+# Model with 1-week halflife (in seconds)
+one_week_seconds = 7 * 24 * 60 * 60
+decay = halflife_to_decay(Float64(one_week_seconds))
+
+result = fit_rem(seq, stats;
+    n_controls = 100,
+    decay = decay,
+    seed = 42
+)
+
+println(result)
+```
+
+## Computational Notes
+
+- Decay is applied incrementally as `update!` is called
+- Time differences are computed relative to `state.current_time`
+- Very fast decay (small halflife) may reduce effective sample size
+- Very slow decay (large halflife) approaches no-decay case
