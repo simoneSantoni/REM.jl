@@ -1,7 +1,5 @@
 # REM.jl
 
-![REM.jl icon](assets/logo.svg)
-
 *Relational Event Models for Julia*
 
 A Julia package for statistical analysis of time-stamped relational events in networks.

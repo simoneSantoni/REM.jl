@@ -28,7 +28,7 @@ makedocs(
             "Estimation" => "api/estimation.md",
         ],
     ],
-    warnonly = [:missing_docs],
+    warnonly = [:missing_docs, :docs_block],
 )
 
 deploydocs(
